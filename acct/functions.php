@@ -102,7 +102,6 @@ function add_history($Payer_Account, $Amount, $Payee_Account, $batch = 0, $Memo 
     }
     $stmt->bindParam(9, $batch);
     $stmt->execute();
-    echo $batch.' - ';
     return $batch;
 }
 
