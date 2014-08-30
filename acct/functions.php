@@ -134,3 +134,15 @@ function transfer_funds($AccountId, $Payer_Account, $Amount, $Payee_Account) {
     ];
     return $spend;
 }
+
+function get_history($login, $start, $end) {
+    $dbh = connect_db();
+    $sql = "SELECT history.* FROM history LEFT JOIN wallet ON (wallets.wallet = history.Payer_Account OR wallets.wallet = history.Payee_Account) WHERE wallets.accountid = ? AND history.Time > ? AND history.Time < ?";
+    $stmt = $dbh->prepare($sql);
+    $stmt->bindParam(1, $login);
+    $stmt->bindParam(2, $start);
+    $stmt->bindParam(3, $end);
+    $stmt->execute();
+    $result = $stmt->fetchAll();
+    return $result;
+}
