@@ -18,3 +18,4 @@ complete methods:
 Todo:
 
 1. Get history in CSV format
+2. Notification(POST, EMAIL) for SCI transfer funds

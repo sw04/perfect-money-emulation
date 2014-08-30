@@ -23,14 +23,14 @@ if (array_key_exists('AccountID', $_GET) and array_key_exists('PassPhrase', $_GE
                         if ($item['balance'] > $Amount) {
                             if (!array_key_exists('Payee_Account', $_GET)) {
                                 echo_error('Invalid Payee_Account');
-                                return 0;
+                                break;
                             } else {
                                 $Payee_Account = filter_var($_GET['Payee_Account'], FILTER_SANITIZE_STRING);
                                 $transfer_result = transfer_funds($login, $Payer_Account, $Amount, $Payee_Account);
 
                                 if (array_key_exists('error', $transfer_result)) {
                                     echo_error($transfer_result['error']);
-                                    return 0;
+                                    break;
                                 } else {
                                     echo "<table border=1>\n<tr><td><b>Name</b></td><td><b>Value</b></td></tr><tr><td>Payee_Account_Name</td><td>".$transfer_result['Payee_Account_Name']." account</td></tr>\n";
                                     //get data
@@ -47,7 +47,7 @@ if (array_key_exists('AccountID', $_GET) and array_key_exists('PassPhrase', $_GE
                                     echo "<input name='PAYMENT_AMOUNT' type='hidden' value='".$transfer_result['PAYMENT_AMOUNT']."'>\n";
                                     echo "<input name='PAYMENT_BATCH_NUM' type='hidden' value='".$transfer_result['PAYMENT_BATCH_NUM']."'>\n";
                                     echo "<input name='PAYMENT_ID' type='hidden' value=''>\n";
-                                    return 1;
+                                    break;
                                 }
                             }
                         } else {
