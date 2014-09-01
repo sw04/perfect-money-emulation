@@ -20,7 +20,7 @@ if (array_key_exists('AccountID', $_GET) and array_key_exists('PassPhrase', $_GE
                 $error = 'Invalid Payer_Account';
                 foreach ($balances as $item) {
                     if ($item['wallet'] == $Payer_Account) {
-                        if ($item['balance'] > $Amount) {
+                        if ($item['balance'] > $Amount*1.005) {
                             if (!array_key_exists('Payee_Account', $_GET)) {
                                 echo_error('Invalid Payee_Account');
                                 break;

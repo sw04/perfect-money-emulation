@@ -1,6 +1,6 @@
 <?php
 include getenv('DOCUMENT_ROOT').'/acct/functions.php';
-//startmonth=8&startday=10&startyear=2014&endmonth=9&endday=10&endyear=2014&AccountID=705512&PassPhrase=aHYfZMjZFW3K?startmonth=8&startday=10&startyear=2014&endmonth=9&endday=10&endyear=2014&AccountID=705512&PassPhrase=aHYfZMjZFW3K
+
 if (array_key_exists('AccountID', $_GET) and array_key_exists('PassPhrase', $_GET)) {
     $login = intval($_GET['AccountID']);
     $password = filter_var($_GET['PassPhrase'], FILTER_SANITIZE_STRING);
@@ -32,7 +32,22 @@ if (array_key_exists('AccountID', $_GET) and array_key_exists('PassPhrase', $_GE
 
         if ($end - $start < 60*60*24*30 and $end - $start > 0) {
             $history = get_history($login, $start, $end);
-            //TODO add send svc file
+
+            $data = 'Time,Type,Batch,Currency,Amount,Fee,Payer Account,Payee Account,Payment ID,Memo'.chr(10);
+            foreach($history as $item) {
+                $data .= date('m/d/Y H:i', $item['Time']).',';
+                $data .= $item['Type'].',';
+                $data .= $item['batch'].',';
+                $data .= $item['Currency'].',';
+                $data .= $item['Amount'].',';
+                $data .= $item['Fee'].',';
+                $data .= $item['Payer_Account'].',';
+                $data .= $item['Payee_Account'].',';
+                $data .= $item['id'].',';
+                $data .= $item['Memo'].chr(10);
+            }
+            send_csv($data);
+            return 1;
         } else {
             echo 'Error: Period between starting and ending date can not be more than 30 days';
         }

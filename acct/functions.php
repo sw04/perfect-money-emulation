@@ -47,8 +47,13 @@ function get_balance($id){
 }
 
 function echo_error($error) {
+    $dbh = connect_db();
+    $stmt = $dbh->prepare("INSERT INTO errors SET error = ?");
+    $stmt->bindParam(1, $error);
+    $stmt->execute();
     echo "Error: ".$error."\n<input name='ERROR' type='hidden' value='".$error."'>";
 }
+
 function update_balance($wallet, $amount) {
     $dbh = connect_db();
     $stmt = $dbh->prepare("UPDATE wallets SET balance = balance + ? WHERE wallet = ?");
@@ -56,9 +61,10 @@ function update_balance($wallet, $amount) {
     $stmt->bindParam(2, $wallet);
     $stmt->execute();
 }
+
 function get_max_history_id() {
     $dbh = connect_db();
-    $stmt = $dbh->prepare("SELECT MAX(id) AS batch FROM history");
+    $stmt = $dbh->prepare("SELECT MAX(id) AS batch, time AS timestampgmt FROM history");
     $stmt->execute();
     $result = $stmt->fetch();
     if ($result != null) {
@@ -102,7 +108,9 @@ function add_history($Payer_Account, $Amount, $Payee_Account, $batch = 0, $Memo 
     }
     $stmt->bindParam(9, $batch);
     $stmt->execute();
-    return $batch;
+
+    $max_id = get_max_history_id();
+    return ['batch' => $batch,'id' => $max_id, 'time' => $max_id['timestampgmt']];
 }
 
 function transfer_funds($AccountId, $Payer_Account, $Amount, $Payee_Account) {
@@ -115,8 +123,8 @@ function transfer_funds($AccountId, $Payer_Account, $Amount, $Payee_Account) {
         return ['error' => 'Invalid Payee_Account'];
     }
     //add in history
-    $batch = add_history($Payer_Account, $Amount, $Payee_Account);
-    add_history($Payee_Account, $Amount*-1, $Payer_Account, $batch);
+    $payment = add_history($Payer_Account, $Amount, $Payee_Account);
+    add_history($Payee_Account, $Amount*-1, $Payer_Account, $payment['batch']);
 
     //update balance
     update_balance($Payer_Account, $Amount*-1);
@@ -130,19 +138,115 @@ function transfer_funds($AccountId, $Payer_Account, $Amount, $Payee_Account) {
         'Payee_Account' => $Payee_Account,
         'Payer_Account' => $Payer_Account,
         'PAYMENT_AMOUNT' => $Amount,
-        'PAYMENT_BATCH_NUM' => $batch
+        'PAYMENT_BATCH_NUM' => $payment['batch'],
+        'PAYMENT_ID' => $payment['id'],
+        'TIMESTAMPGMT' => $payment['time']
     ];
     return $spend;
 }
 
 function get_history($login, $start, $end) {
     $dbh = connect_db();
-    $sql = "SELECT history.* FROM history LEFT JOIN wallet ON (wallets.wallet = history.Payer_Account OR wallets.wallet = history.Payee_Account) WHERE wallets.accountid = ? AND history.Time > ? AND history.Time < ?";
+    $sql = "SELECT history.* FROM history LEFT JOIN wallets ON (wallets.wallet = history.Payer_Account OR wallets.wallet = history.Payee_Account) WHERE wallets.accountid = ? AND history.Time > ? AND history.Time < ? ORDER BY history.id DESC";
     $stmt = $dbh->prepare($sql);
     $stmt->bindParam(1, $login);
-    $stmt->bindParam(2, $start);
-    $stmt->bindParam(3, $end);
+    $stmt->bindParam(2, $login);
+    $stmt->bindParam(3, $start);
+    $stmt->bindParam(4, $end);
     $stmt->execute();
     $result = $stmt->fetchAll();
     return $result;
+}
+
+function get_alternative_phrase($wallet) {
+    $dbh = connect_db();
+    $sql = 'SELECT accounts.alternative_phrase FROM wallets LEFT JOIN accounts ON (wallets.accountid = accounts.accountid) WHERE wallets.wallet = ?';
+    $stmt = $dbh->prepare($sql);
+    $stmt->bindParam(1, $wallet);
+    $stmt->execute();
+    $result = $stmt->fetch();
+    return $result['alternative_phrase'];
+}
+
+function get_v2_hash($data){
+    $hash  = $data['PAYMENT_ID'].':'.$data['Payee_Account'].':'.$data['PAYMENT_AMOUNT'].':USD:';
+    $hash .= $data['PAYMENT_BATCH_NUM'].':'.$data['Payer_Account'];
+    $hash .= ':'.strtoupper(md5(get_alternative_phrase($data['Payer_Account']))).':'.$data['TIMESTAMPGMT']; //TODO fix alrenative phrase
+    return strtoupper(md5($hash));
+}
+
+function get_baggage_fields() {
+    if (array_key_exists('BAGGAGE_FIELDS', $_POST)) {
+        $baggage = explode(' ', $_POST);
+        $result = [];
+        foreach($baggage as $item) {
+            if (array_key_exists($item, $_POST)) {
+                array_push($result, ['index' => $item, 'value' => $_POST[$item]]);
+            }
+        }
+        return $result;
+    }
+    return [];
+}
+
+function send_transfer_result($data, $b) {
+    $send_data = [
+        "PAYEE_ACCOUNT" => $data['Payee_Account'],
+        "PAYMENT_ID" => $data['PAYMENT_ID'],
+        "PAYMENT_AMOUNT" => $data['PAYMENT_AMOUNT'],
+        "PAYMENT_UNITS" => "USD", //TODO default currency. most value - USD, EUR
+        "PAYMENT_BATCH_NUM" => $data['PAYMENT_BATCH_NUM'],
+        "PAYER_ACCOUNT" => $data['Payer_Account'],
+        "TIMESTAMPGMT" => $data['TIMESTAMPGMT'],
+        "V2_HASH" => get_v2_hash($data),
+        "BAGGAGE_FIELDS" => ""
+    ];
+    //baggage fields
+    foreach($b as $item) {
+        $send_data[$item['index']] = $item['value'];
+    }
+    //generate post query
+    $post_data = '';
+    foreach($send_data as $index => $item) {
+        $post_data = $index.'='.$item;
+        $post_data .= '&';
+    }
+
+    //send result
+    $out = '';
+    if ($_POST['PAYMENT_URL_METHOD'] == 'POST') {
+        $url = $_POST['STATUS_URL'];
+        if( $curl = curl_init() ) {
+            curl_setopt($curl, CURLOPT_URL, $url);
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($curl, CURLOPT_POST, true);
+            curl_setopt($curl, CURLOPT_POSTFIELDS, $post_data);
+            $out = curl_exec($curl);
+            curl_close($curl);
+        }
+    }
+    return $out;
+}
+
+function send_csv ($data) {
+    $file = 'history.csv';
+    $fp = fopen($file, 'w');
+    fwrite($fp, $data);
+    fclose($fp);
+
+    if (file_exists($file)) {
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename='.basename($file));
+        header('Content-Transfer-Encoding: binary');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($file));
+        ob_clean();
+        flush();
+        readfile($file);
+        unlink($file);
+        exit;
+    }
 }
