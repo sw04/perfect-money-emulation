@@ -177,7 +177,7 @@ function get_v2_hash($data){
 
 function get_baggage_fields() {
     if (array_key_exists('BAGGAGE_FIELDS', $_POST)) {
-        $baggage = explode(' ', $_POST);
+        $baggage = explode(' ', str_replace('+', ' ',$_POST['BAGGAGE_FIELDS']));
         $result = [];
         foreach($baggage as $item) {
             if (array_key_exists($item, $_POST)) {
@@ -199,16 +199,17 @@ function send_transfer_result($data, $b) {
         "PAYER_ACCOUNT" => $data['Payer_Account'],
         "TIMESTAMPGMT" => $data['TIMESTAMPGMT'],
         "V2_HASH" => get_v2_hash($data),
-        "BAGGAGE_FIELDS" => ""
+        "BAGGAGE_FIELDS" => $_POST['BAGGAGE_FIELDS']
     ];
     //baggage fields
     foreach($b as $item) {
         $send_data[$item['index']] = $item['value'];
     }
+
     //generate post query
     $post_data = '';
     foreach($send_data as $index => $item) {
-        $post_data = $index.'='.$item;
+        $post_data .= $index.'='.$item;
         $post_data .= '&';
     }
 
@@ -216,10 +217,11 @@ function send_transfer_result($data, $b) {
     $out = '';
     if ($_POST['PAYMENT_URL_METHOD'] == 'POST') {
         $url = $_POST['STATUS_URL'];
+
         if( $curl = curl_init() ) {
-            curl_setopt($curl, CURLOPT_URL, $url);
+            curl_setopt($curl, CURLOPT_URL, urldecode($url));
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_POST, true);
+            curl_setopt($curl, CURLOPT_POST, count($send_data));
             curl_setopt($curl, CURLOPT_POSTFIELDS, $post_data);
             $out = curl_exec($curl);
             curl_close($curl);

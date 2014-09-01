@@ -1,11 +1,12 @@
 <?php
 if (!empty($_POST)) {
+    include getenv('DOCUMENT_ROOT').'/acct/functions.php';
     $req = [
         'AccountID',
         'PassPhrase',
         'Payer_Account',
-        'Payee_Account',
-        'Amount',
+        'PAYEE_ACCOUNT',
+        'PAYMENT_AMOUNT',
         'STATUS_URL',
         'PAYMENT_URL',
         'PAYMENT_URL_METHOD',
@@ -35,7 +36,7 @@ if (!empty($_POST)) {
             PassPhrase:<input type="text" name="PassPhrase" value="<?=filter_var($_POST['PassPhrase'], FILTER_SANITIZE_STRING)?>">
         </p>
         <p>
-            Amount:<input type="text" name="Amount" value="<?=$_POST['Amount']?>" />
+            Amount:<input type="text" name="PAYMENT_AMOUNT" value="<?=$_POST['PAYMENT_AMOUNT']?>" />
         </p>
         <p><input type="submit" value="Pay" /></p>
     </form>
