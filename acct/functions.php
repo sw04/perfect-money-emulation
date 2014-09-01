@@ -64,11 +64,12 @@ function update_balance($wallet, $amount) {
 
 function get_max_history_id() {
     $dbh = connect_db();
-    $stmt = $dbh->prepare("SELECT MAX(id) AS batch, time AS timestampgmt FROM history");
+    $stmt = $dbh->prepare("SELECT id, MAX(id) AS batch, time AS timestampgmt FROM history");
     $stmt->execute();
     $result = $stmt->fetch();
     if ($result != null) {
-        return $result['batch'] + 1;
+        $result['batch'] = $result['batch'] + 1;
+        return $result;
     }
     return 1;
 }
@@ -104,13 +105,14 @@ function add_history($Payer_Account, $Amount, $Payee_Account, $batch = 0, $Memo 
     $stmt->bindParam(8, $Memo);
     if ($batch == 0) {
         //get max id
-        $batch = get_max_history_id();
+        $max_id = get_max_history_id();
+        $batch = $max_id['batch'];
     }
     $stmt->bindParam(9, $batch);
     $stmt->execute();
 
     $max_id = get_max_history_id();
-    return ['batch' => $batch,'id' => $max_id, 'time' => $max_id['timestampgmt']];
+    return ['batch' => $batch, 'id' => $max_id['id'], 'time' => $max_id['timestampgmt']];
 }
 
 function transfer_funds($AccountId, $Payer_Account, $Amount, $Payee_Account) {
@@ -145,14 +147,21 @@ function transfer_funds($AccountId, $Payer_Account, $Amount, $Payee_Account) {
     return $spend;
 }
 
-function get_history($login, $start, $end) {
+function get_history($login, $start, $end, $batch = 0) {
     $dbh = connect_db();
-    $sql = "SELECT history.* FROM history LEFT JOIN wallets ON (wallets.wallet = history.Payer_Account OR wallets.wallet = history.Payee_Account) WHERE wallets.accountid = ? AND history.Time > ? AND history.Time < ? ORDER BY history.id DESC";
+    $batchsql = '';
+    if ($batch) {
+        $batchsql = 'AND batch = ?';
+    }
+    $sql = "SELECT history.* FROM history LEFT JOIN wallets ON (wallets.wallet = history.Payer_Account OR wallets.wallet = history.Payee_Account) WHERE wallets.accountid = ? AND history.Time > ? AND history.Time < ? ".$batchsql." ORDER BY history.id DESC";
     $stmt = $dbh->prepare($sql);
     $stmt->bindParam(1, $login);
     $stmt->bindParam(2, $login);
     $stmt->bindParam(3, $start);
     $stmt->bindParam(4, $end);
+    if ($batch) {
+        $stmt->bindParam(5, $batch);
+    }
     $stmt->execute();
     $result = $stmt->fetchAll();
     return $result;
