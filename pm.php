@@ -17,7 +17,8 @@ class pm {
         $stmt->bindParam(4, $alternative_phrase);
         $stmt->execute();
 
-        self::add_wallet($accountid, $balance) ;
+        self::add_wallet($accountid, $balance);
+        return ['ok' => 'ok'];
     }
 
     static function add_wallet($accountid, $balance) {
@@ -33,5 +34,4 @@ class pm {
 
 }
 //sample
-//
-pm::create(123,123,'123 acc','hyip',100);
+//pm::create(123,123,'123 acc','hyip',100);
