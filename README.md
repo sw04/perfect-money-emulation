@@ -22,6 +22,10 @@ For backend emulation added pm class(/pm.php):
 1. create account - pm::create($accountid, $pass, $name = '', $alternative_phrase = 'some phrase', $balance = 0)
 2. add wallet - pm::add_wallet($accountid, $balance)
 
+For other projects:
+
+1. create account - /api/create_account?login=123&password=123&name=some_name&alternative_phrase=secret_phrase&balance=100.01
+
 Todo:
 
 1. Notification(on EMAIL) for SCI transfer funds
