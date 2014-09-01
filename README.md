@@ -17,6 +17,11 @@ complete methods:
 3. Get history in CSV format
 4. Notification on POST for SCI transfer funds
 
+For backend emulation added pm class(/pm.php):
+
+1. create account - pm::create($accountid, $pass, $name = '', $alternative_phrase = 'some phrase', $balance = 0)
+2. add wallet - pm::add_wallet($accountid, $balance)
+
 Todo:
 
 1. Notification(on EMAIL) for SCI transfer funds
