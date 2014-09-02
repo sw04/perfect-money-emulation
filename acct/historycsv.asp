@@ -32,10 +32,14 @@ if (array_key_exists('AccountID', $_GET) and array_key_exists('PassPhrase', $_GE
 
         if ($end - $start < 60*60*24*30 and $end - $start >= 0) {
             $batchfilter = 0;
+            $paymentsreceived = 0;
             if (array_key_exists('batchfilter', $_GET)) {
                 $batchfilter = intval($_GET['batchfilter']);
             }
-            $history = get_history($login, $start - 60*60*24, $end + 60*60*24, $batchfilter);
+            if (array_key_exists('paymentsreceived', $_GET)) {
+                $paymentsreceived = intval($_GET['paymentsreceived']);
+            }
+            $history = get_history($login, $start - 60*60*24*2, $end + 60*60*24*2, $batchfilter, $paymentsreceived);
 
             $data = 'Time,Type,Batch,Currency,Amount,Fee,Payer Account,Payee Account,Payment ID,Memo'.chr(10);
             foreach($history as $item) {

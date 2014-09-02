@@ -147,20 +147,24 @@ function transfer_funds($AccountId, $Payer_Account, $Amount, $Payee_Account) {
     return $spend;
 }
 
-function get_history($login, $start, $end, $batch = 0) {
+function get_history($login, $start, $end, $batch = 0, $paymentsreceived = 0) {
     $dbh = connect_db();
     $batchsql = '';
     if ($batch) {
         $batchsql = 'AND batch = ?';
     }
-    $sql = "SELECT history.* FROM history LEFT JOIN wallets ON (wallets.wallet = history.Payer_Account OR wallets.wallet = history.Payee_Account) WHERE wallets.accountid = ? AND history.Time > ? AND history.Time < ? ".$batchsql." ORDER BY history.id DESC";
+    $joinsql = '';
+    if (!$paymentsreceived) {
+        $joinsql = ' wallets.wallet = history.Payer_Account OR ';
+    }
+
+    $sql = "SELECT history.* FROM history LEFT JOIN wallets ON (".$joinsql." wallets.wallet = history.Payee_Account) WHERE wallets.accountid = ? AND history.Time > ? AND history.Time < ? ".$batchsql." ORDER BY history.id DESC";
     $stmt = $dbh->prepare($sql);
     $stmt->bindParam(1, $login);
-    $stmt->bindParam(2, $login);
-    $stmt->bindParam(3, $start);
-    $stmt->bindParam(4, $end);
+    $stmt->bindParam(2, $start);
+    $stmt->bindParam(3, $end);
     if ($batch) {
-        $stmt->bindParam(5, $batch);
+        $stmt->bindParam(4, $batch);
     }
     $stmt->execute();
     $result = $stmt->fetchAll();
