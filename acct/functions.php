@@ -64,7 +64,7 @@ function update_balance($wallet, $amount) {
 
 function get_max_history_id() {
     $dbh = connect_db();
-    $stmt = $dbh->prepare("SELECT id, MAX(id) AS batch, time AS timestampgmt FROM history");
+    $stmt = $dbh->prepare("SELECT id, id AS batch, time AS timestampgmt FROM history ORDER BY id DESC");
     $stmt->execute();
     $result = $stmt->fetch();
     if ($result != null) {
